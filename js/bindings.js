@@ -39,21 +39,27 @@ Ethash.prototype.mkcache = function (cacheSize, seed) {
 }
 
 // run(val, nonce, fullSize)
-// returns: { mix: Buffer, hash: buffer }
+// returns: { mix_hash: Buffer, result: buffer }
 Ethash.prototype.run = function (val, nonce, fullSize) {
     // get new cache from cpp
-    let ret = ethashcpp.ethash_light_compute_internal(this.cache, fullSize, val, nonce);
+    return ethashcpp.ethash_light_compute_internal(this.cache, fullSize, val, nonce);
+}
 
-    return {
-        mix: ret.mix_hash,
-        hash: ret.result
-    }
+// doHash(state, val, nonce)
+// returns: { mix_hash: Buffer, result: buffer }
+Ethash.prototype.doHash = function(state, val, nonce) {
+    return ethashcpp.ethash_light_compute_internal(state.cache, state.fullSize, val, nonce);
 }
 
 Ethash.prototype.headerHash = ethashjs.prototype.headerHash;
 
-Ethash.prototype.cacheHash = function () {
-  return ethUtil.sha3(this.cache);
+Ethash.prototype.cacheHash = function (state) {
+  return ethUtil.sha3((state || this).cache);
+}
+
+// Get current epoch
+Ethash.prototype.getEpoc = function(number) {
+    return ethHashUtil.getEpoc(number);
 }
 
 /**
@@ -88,8 +94,7 @@ Ethash.prototype.loadEpoc = function (number, cb) {
     };
 
     let generate = (curr, begin) => {
-        let [cacheSize, fullSize] = [ethHashUtil.getCacheSize(epoc), ethHashUtil.getFullSize(epoc)];
-        let seed = ethHashUtil.getSeed(curr, begin, epoc);
+        let [cacheSize, fullSize, seed] = [ethHashUtil.getCacheSize(epoc), ethHashUtil.getFullSize(epoc), ethHashUtil.getSeed(curr, begin, epoc)];
         return {
             cacheSize: cacheSize,
             fullSize: fullSize,
@@ -119,4 +124,3 @@ Ethash.prototype.loadEpoc = function (number, cb) {
     });
     /* eslint-enable handle-callback-err */
 }
-
