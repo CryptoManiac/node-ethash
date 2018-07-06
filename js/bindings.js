@@ -1,59 +1,59 @@
 'use strict'
 
-const ethUtil = require('ethereumjs-util')
-const ethashjs = require('ethashjs')
-const ethHashUtil = require('ethashjs/util')
-const ethashcpp = require('bindings')('ethash')
+const ethUtil = require('ethereumjs-util');
+const ethashjs = require('ethashjs');
+const ethHashUtil = require('ethashjs/util');
+const ethashcpp = require('bindings')('ethash');
 
-var messages = require('./messages')
+var messages = require('./messages');
 
 var Ethash = module.exports = function (cacheDB) {
-  this.dbOpts = {
-    valueEncoding: 'json'
-  }
-  this.cacheDB = cacheDB
-  this.cache = false
-  this.light = false
+    this.dbOpts = {
+        valueEncoding: 'json'
+    };
+    this.cacheDB = cacheDB;
+    this.cache = false;
+    this.light = false;
 }
 
 // ethash_light_new(block_number)
 // returns: { block_number: Number, cache: Buffer }
-Ethash.prototype.ethash_light_new = ethashcpp.ethash_light_new
+Ethash.prototype.ethash_light_new = ethashcpp.ethash_light_new;
 
 // ethash_light_compute(light, header_hash, nonce)
 // returns: { mix_hash: Buffer, result: Buffer }
 Ethash.prototype.ethash_light_compute = function (light, header_hash, nonce) {
-  if (!light || !light.hasOwnProperty('block_number') || !light.hasOwnProperty('cache')) {
-    throw new TypeError(messages.LIGHT_OBJ_INVALID)
-  }
-  return ethashcpp.ethash_light_compute(light.block_number, light.cache, header_hash, nonce)
+    if (!light || !light.hasOwnProperty('block_number') || !light.hasOwnProperty('cache')) {
+        throw new TypeError(messages.LIGHT_OBJ_INVALID);
+    }
+    return ethashcpp.ethash_light_compute(light.block_number, light.cache, header_hash, nonce);
 }
 
 // mkcache(cacheSize, seed)
 // returns: arrays of cache lines
 Ethash.prototype.mkcache = function (cacheSize, seed) {
-  // get new cache from cpp
-  this.cache = ethashcpp.ethash_light_new_internal(cacheSize, seed)
-  // cache is a single Buffer here! Not an array of cache lines.
-  return this.cache
+    // get new cache from cpp
+    this.cache = ethashcpp.ethash_light_new_internal(cacheSize, seed);
+    // cache is a single Buffer here! Not an array of cache lines.
+    return this.cache;
 }
 
 // run(val, nonce, fullSize)
 // returns: { mix: Buffer, hash: buffer }
 Ethash.prototype.run = function (val, nonce, fullSize) {
-  // get new cache from cpp
-  var ret = ethashcpp.ethash_light_compute_internal(this.cache, fullSize, val, nonce)
+    // get new cache from cpp
+    let ret = ethashcpp.ethash_light_compute_internal(this.cache, fullSize, val, nonce);
 
-  return {
-    mix: ret.mix_hash,
-    hash: ret.result
-  }
+    return {
+        mix: ret.mix_hash,
+        hash: ret.result
+    }
 }
 
-Ethash.prototype.headerHash = ethashjs.prototype.headerHash
+Ethash.prototype.headerHash = ethashjs.prototype.headerHash;
 
 Ethash.prototype.cacheHash = function () {
-  return ethUtil.sha3(this.cache)
+  return ethUtil.sha3(this.cache);
 }
 
 /**
@@ -63,60 +63,60 @@ Ethash.prototype.cacheHash = function () {
  * @param cb function
  */
 Ethash.prototype.loadEpoc = function (number, cb) {
-  var self = this
-  const epoc = ethHashUtil.getEpoc(number)
+    const epoc = ethHashUtil.getEpoc(number);
+    let self = this;
 
-  if (this.epoc === epoc) {
-    return cb()
-  }
-
-  this.epoc = epoc
-
-  // gives the seed the first epoc found
-  function findLastSeed (epoc, cb2) {
-    if (epoc === 0) {
-      return cb2(ethUtil.zeros(32), 0)
+    if (this.epoc === epoc) {
+        return cb();
     }
 
-    self.cacheDB.get(epoc, self.dbOpts, function (err, data) {
-      if (!err) {
-        cb2(data.seed, epoc)
-      } else {
-        findLastSeed(epoc - 1, cb2)
-      }
-    })
-  }
+    this.epoc = epoc;
 
-  /* eslint-disable handle-callback-err */
-  self.cacheDB.get(epoc, self.dbOpts, function (err, data) {
-    if (!data) {
-      self.cacheSize = ethHashUtil.getCacheSize(epoc)
-      self.fullSize = ethHashUtil.getFullSize(epoc)
+    // gives the seed the first epoc found
+    let findLastSeed = (ep, cb2) => {
+        if (ep === 0) {
+            return cb2(ethUtil.zeros(32), 0);
+        }
 
-      findLastSeed(epoc, function (seed, foundEpoc) {
-        self.seed = ethHashUtil.getSeed(seed, foundEpoc, epoc)
-        var cache = self.mkcache(self.cacheSize, self.seed)
-        // store the generated cache
-        self.cacheDB.put(epoc, {
-          cacheSize: self.cacheSize,
-          fullSize: self.fullSize,
-          seed: self.seed,
-          cache: cache
-        }, self.dbOpts, cb)
-      })
-    } else {
-      // Object.assign(self, data)
-      // cache is a single Buffer here! Not an array of cache lines.
-      self.cache = data.cache
-      self.cacheSize = data.cacheSize
-      self.fullSize = data.fullSize
-      self.seed = new Buffer(data.seed)
-      cb()
-    }
-  })
-  /* eslint-enable handle-callback-err */
+        self.cacheDB.get(ep, self.dbOpts, function (err, data) {
+            if (!err) {
+                cb2(data.seed, ep);
+            } else {
+                findLastSeed(ep - 1, cb2);
+            }
+        });
+    };
+
+    let generate = (curr, begin) => {
+        let [cacheSize, fullSize] = [ethHashUtil.getCacheSize(epoc), ethHashUtil.getFullSize(epoc)];
+        let seed = ethHashUtil.getSeed(curr, begin, epoc);
+        return {
+            cacheSize: cacheSize,
+            fullSize: fullSize,
+            seed: seed,
+            cache: self.mkcache(cacheSize, seed)
+        };
+    };
+
+    /* eslint-disable handle-callback-err */
+    self.cacheDB.get(epoc, self.dbOpts, (err, rec) => {
+        let set = (r) => {
+            self.cache = r.cache;
+            self.cacheSize = r.cacheSize;
+            self.fullSize = r.fullSize;
+            self.seed = new Buffer(r.seed);
+            cb(self);
+        };
+        if (!rec) {
+            return findLastSeed(epoc, (seed, begin) => {
+                let rec = generate(seed, begin);
+                // store the generated cache
+                self.cacheDB.put(epoc, rec, self.dbOpts, cb);
+                set(rec);
+            });
+        }
+        set(rec);
+    });
+    /* eslint-enable handle-callback-err */
 }
 
-Ethash.prototype._verifyPOW = ethashjs.prototype._verifyPOW
-
-Ethash.prototype.verifyPOW = ethashjs.prototype.verifyPOW

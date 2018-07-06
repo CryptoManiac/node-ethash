@@ -1,8 +1,8 @@
 #include <stdint.h>
-#include <endian.h>
 #include <node.h>
 #include <nan.h>
 
+#include "endian.h"
 #include "util.h"
 #include "messages.h"
 #include "libethash/ethash.h"
