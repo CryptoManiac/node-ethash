@@ -20,10 +20,7 @@
     "clean": "node-gyp clean",
     "build": "node-gyp rebuild",
     "install": "npm run build",
-    "rebuild": "npm run build",
-    "lint": "standard",
-    "test": "npm run test:node",
-    "test:node": "istanbul test node_modules/mocha/bin/_mocha -- --reporter spec test/index.js"
+    "rebuild": "npm run build"
   },
   "dependencies": {
     "bindings": "^1.2.1",
@@ -32,14 +29,7 @@
     "nan": "^2.2.1"
   },
   "devDependencies": {
-    "benchmark": "^2.1.0",
-    "chai": "^4.1.2",
-    "ethereumjs-block": "^1.2.2",
-    "ethereumjs-testing": "1.0.4",
-    "istanbul": "^0.4.3",
-    "mocha": "^3.1.2",
-    "node-gyp": "^3.3.1",
-    "standard": "^8.5.0"
+    "node-gyp": "^3.3.1"
   },
   "standard": {
     "ignore": [
