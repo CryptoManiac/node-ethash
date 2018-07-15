@@ -4,6 +4,7 @@ const ethUtil = require('ethereumjs-util');
 const ethashjs = require('ethashjs');
 const ethHashUtil = require('ethashjs/util');
 const ethashcpp = require('bindings')('ethash');
+const deasync = require('deasync');
 
 var messages = require('./messages');
 
@@ -47,8 +48,8 @@ Ethash.prototype.run = function (val, nonce, fullSize) {
 
 // doHash(state, val, nonce)
 // returns: { mix_hash: Buffer, result: buffer }
-Ethash.prototype.doHash = function(state, val, nonce) {
-    return ethashcpp.ethash_light_compute_internal(state.cache, state.fullSize, val, nonce);
+Ethash.prototype.doHash = function(val, nonce) {
+    return ethashcpp.ethash_light_compute_internal(this.cache, this.fullSize, val, nonce);
 }
 
 Ethash.prototype.headerHash = ethashjs.prototype.headerHash;
@@ -60,6 +61,14 @@ Ethash.prototype.cacheHash = function (state) {
 // Get current epoch
 Ethash.prototype.getEpoc = function(number) {
     return ethHashUtil.getEpoc(number);
+}
+
+Ethash.prototype.loadEpocSync = function (number) {
+    let state = undefined;
+    this.loadEpoc(number, (st) => {
+        state = st;
+    });
+    deasync.loopWhile(() => { return !state; });
 }
 
 /**
